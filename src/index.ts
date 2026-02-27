@@ -1,59 +1,32 @@
-import { eq } from 'drizzle-orm';
-// The 'pool' export will only exist for WebSocket and node-postgres drivers
-import * as dbClient from './db';
-import { departments } from './db/schema';
+import express from "express";
+import cors from "cors";
+import subjectsRouter from "./routes/subjects.js";
 
-const db = dbClient.db;
-const pool = (dbClient as any).pool;
 
-async function main() {
-  try {
-    console.log('Performing CRUD operations...');
+// import securityMiddleware from "./middleware/security.js";
 
-    // CREATE: Insert a new department
-    const [newDepartment] = await db
-      .insert(departments)
-      .values({ code: 'CS', name: 'Computer Science', description: 'Computing Department' })
-      .returning();
+const app = express();
+const PORT = 8000;
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL, // React app URL
+    methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed HTTP methods
+    credentials: true, // allow cookies
+  })
+);
 
-    if (!newDepartment) {
-      throw new Error('Failed to create department');
-    }
-    
-    console.log('✅ CREATE: New department created:', newDepartment);
 
-    // READ: Select the department
-    const foundDepartment = await db.select().from(departments).where(eq(departments.id, newDepartment.id));
-    console.log('✅ READ: Found department:', foundDepartment[0]);
 
-    // UPDATE: Change the department's name
-    const [updatedDepartment] = await db
-      .update(departments)
-      .set({ name: 'Computer Science & Engineering' })
-      .where(eq(departments.id, newDepartment.id))
-      .returning();
-    
-    if (!updatedDepartment) {
-      throw new Error('Failed to update department');
-    }
-    
-    console.log('✅ UPDATE: Department updated:', updatedDepartment);
+app.use(express.json());
 
-    // DELETE: Remove the department
-    await db.delete(departments).where(eq(departments.id, newDepartment.id));
-    console.log('✅ DELETE: Department deleted.');
+// app.use(securityMiddleware);
 
-    console.log('\nCRUD operations completed successfully.');
-  } catch (error) {
-    console.error('❌ Error performing CRUD operations:', error);
-    process.exit(1);
-  } finally {
-    // If the pool exists, end it to close the connection
-    if (pool) {
-      await pool.end();
-      console.log('Database pool closed.');
-    }
-  }
-}
+app.use("/api/subjects", subjectsRouter);
 
-main();
+app.get("/", (req, res) => {
+  res.send("Backend server is running!");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
